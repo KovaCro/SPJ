@@ -4,7 +4,7 @@ data Term = Var Int | Lam Term | App Term Term
 data TypedTerm = TVar Int | TLam TypedTerm Type | TApp TypedTerm TypedTerm
   deriving (Show, Read, Eq)
 
-data Type = T Int | Arrow Type Type
+data Type = M Int | P Int | Arrow Type Type
   deriving (Show, Read, Eq)
 
 -- Lista varijabli i njihovih tipova
@@ -59,7 +59,7 @@ eraseType (TLam t _) = Lam (eraseType t)
 eraseType (TApp t1 t2) = App (eraseType t1) (eraseType t2)
 
 -- Primjer (\.:A(\.:B 0 1) 0) (\.:C 0)
-example_erase = eraseType (TApp (TLam (TApp (TLam (TApp (TVar 0) (TVar 1)) (T 1)) (TVar 0)) (T 0)) (TLam (TVar 0) (T 2)))
+example_erase = eraseType (TApp (TLam (TApp (TLam (TApp (TVar 0) (TVar 1)) (M 1)) (TVar 0)) (M 0)) (TLam (TVar 0) (M 2)))
 
 -- Spaja Typeove
 unify :: Type -> Type -> Maybe ()
@@ -69,6 +69,7 @@ unify (Arrow t11 t12) (Arrow t21 t22) = do
 unify t1 t2 = if t1 == t2 then Just () else Nothing
 
 -- U Contextu varijable s indexima -1 su bounded i uređenog poretka su
+-- Pretpostavlja se da je vođeno računa da unbounded varijable budu puno veceg indeksa
 inferType :: TypedTerm -> Context -> Maybe Type
 inferType (TVar x) ctx = 
   case lookup x ctx of
@@ -84,12 +85,14 @@ inferType (TApp t1 t2) ctx = do
     Arrow t' t'' -> if unify t' t2ty == Just () then Just t'' else Nothing
     _ -> Nothing
 
--- A = T 0, B = T 1
+-- A = M 0, B = M 1
 -- Primjer (\.:A\.:(A->B) 0)
-example_infer1 = inferType (TLam (TLam (TVar 0) (Arrow (T 0) (T 1))) (T 0)) []
+example_infer1 = inferType (TLam (TLam (TVar 0) (Arrow (M 0) (M 1))) (M 0)) []
 -- Primjer (\.:A\.:(A->B) 0 1)
-example_infer2 = inferType (TLam (TLam (TApp (TVar 0) (TVar 1)) (Arrow (T 0) (T 1))) (T 0)) []
+example_infer2 = inferType (TLam (TLam (TApp (TVar 0) (TVar 1)) (Arrow (M 0) (M 1))) (M 0)) []
 -- Primjer (\.:A\.:(A->B) 0 1) (x:A)
-example_infer3 = inferType (TApp (TLam (TLam (TApp (TVar 0) (TVar 1)) (Arrow (T 0) (T 1))) (T 0)) (TVar 10)) [(10, T 0)]
+example_infer3 = inferType (TApp (TLam (TLam (TApp (TVar 0) (TVar 1)) (Arrow (M 0) (M 1))) (M 0)) (TVar 10)) [(10, M 0)]
 -- Primjer (\.:A\.:(A->B) 0 1) (x:B)
-example_infer4 = inferType (TApp (TLam (TLam (TApp (TVar 0) (TVar 1)) (Arrow (T 0) (T 1))) (T 0)) (TVar 10)) [(10, T 1)]
+example_infer4 = inferType (TApp (TLam (TLam (TApp (TVar 0) (TVar 1)) (Arrow (M 0) (M 1))) (M 0)) (TVar 10)) [(10, M 1)]
+
+-- A = P 0, B = M 0
