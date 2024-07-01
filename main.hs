@@ -4,7 +4,7 @@ data Term = Var Int | Lam Term | App Term Term
 data TypedTerm = TVar Int | TLam TypedTerm Type | TApp TypedTerm TypedTerm
   deriving (Show, Read, Eq)
 
-data Type = A | B | C | Arrow Type Type
+data Type = T Int | Arrow Type Type
   deriving (Show, Read, Eq)
 
 -- Lista varijabli i njihovih tipova
@@ -59,7 +59,7 @@ eraseType (TLam t _) = Lam (eraseType t)
 eraseType (TApp t1 t2) = App (eraseType t1) (eraseType t2)
 
 -- Primjer (\.:A(\.:B 0 1) 0) (\.:C 0)
-example_erase = eraseType (TApp (TLam (TApp (TLam (TApp (TVar 0) (TVar 1)) B) (TVar 0)) A) (TLam (TVar 0) C))
+example_erase = eraseType (TApp (TLam (TApp (TLam (TApp (TVar 0) (TVar 1)) (T 1)) (TVar 0)) (T 0)) (TLam (TVar 0) (T 2)))
 
 -- Spaja Typeove
 unify :: Type -> Type -> Maybe ()
@@ -84,7 +84,12 @@ inferType (TApp t1 t2) ctx = do
     Arrow t' t'' -> if unify t' t2ty == Just () then Just t'' else Nothing
     _ -> Nothing
 
+-- A = T 0, B = T 1
 -- Primjer (\.:A\.:(A->B) 0)
-example_infer1 = inferType (TLam (TLam (TVar 0) (Arrow A B)) A) []
+example_infer1 = inferType (TLam (TLam (TVar 0) (Arrow (T 0) (T 1))) (T 0)) []
 -- Primjer (\.:A\.:(A->B) 0 1)
-example_infer2 = inferType (TLam (TLam (TApp (TVar 0) (TVar 1)) (Arrow A B)) A) []
+example_infer2 = inferType (TLam (TLam (TApp (TVar 0) (TVar 1)) (Arrow (T 0) (T 1))) (T 0)) []
+-- Primjer (\.:A\.:(A->B) 0 1) (x:A)
+example_infer3 = inferType (TApp (TLam (TLam (TApp (TVar 0) (TVar 1)) (Arrow (T 0) (T 1))) (T 0)) (TVar 10)) [(10, T 0)]
+-- Primjer (\.:A\.:(A->B) 0 1) (x:B)
+example_infer4 = inferType (TApp (TLam (TLam (TApp (TVar 0) (TVar 1)) (Arrow (T 0) (T 1))) (T 0)) (TVar 10)) [(10, T 1)]
