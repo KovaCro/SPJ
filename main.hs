@@ -8,7 +8,7 @@ data Type = A | B | C | Arrow Type Type
   deriving (Show, Read, Eq)
 
 -- Lista varijabli i njihovih tipova
-type Env = [(Int, Type)]
+type Context = [(Int, Type)]
 
 -- d-place shift u termu
 shift :: Int -> Term -> Term
@@ -61,25 +61,30 @@ eraseType (TApp t1 t2) = App (eraseType t1) (eraseType t2)
 -- Primjer (\.:A(\.:B 0 1) 0) (\.:C 0)
 example_erase = eraseType (TApp (TLam (TApp (TLam (TApp (TVar 0) (TVar 1)) B) (TVar 0)) A) (TLam (TVar 0) C))
 
-{-
--- Zakljucuje Type Terma
-inferType :: Term -> Env -> Maybe Type
-inferType (Var x) env = lookup x env
-inferType (Lam t1 ty) env = do
-    t1ty <- inferType t1 env
-    Just (Arrow ty t1ty)
-inferType (App t1 t2) env = do
-  t1ty <- inferType t1 env
-  t2ty <- inferType t2 env
-  case t1ty of
-    Arrow t' t'' -> if unify t' t2ty then Just t1ty
-    _ -> Nothing
-
 -- Spaja Typeove
 unify :: Type -> Type -> Maybe ()
-unify (t1, t2) | t1 == t2 -> Just ()
-unify (Arrow t11 t12, Arrow t21 t22) = do
-  unify (t11, t21)
-  unify (t12, t22)
-unify _ _ = Nothing
--}
+unify (Arrow t11 t12) (Arrow t21 t22) = do
+  unify t11 t21
+  unify t12 t22
+unify t1 t2 = if t1 == t2 then Just () else Nothing
+
+-- U Contextu varijable s indexima -1 su bounded i uređenog poretka su
+inferType :: TypedTerm -> Context -> Maybe Type
+inferType (TVar x) ctx = 
+  case lookup x ctx of
+    Just t -> Just t
+    _ -> return (snd (ctx!!x))
+inferType (TLam t1 ty) ctx = do
+    t1ty <- inferType t1 ([(-1, ty)]++ctx)
+    Just (Arrow ty t1ty)
+inferType (TApp t1 t2) ctx = do
+  t1ty <- inferType t1 ctx
+  t2ty <- inferType t2 ctx
+  case t1ty of
+    Arrow t' t'' -> if unify t' t2ty == Just () then Just t'' else Nothing
+    _ -> Nothing
+
+-- Primjer (\.:A\.:(A->B) 0)
+example_infer1 = inferType (TLam (TLam (TVar 0) (Arrow A B)) A) []
+-- Primjer (\.:A\.:(A->B) 0 1)
+example_infer2 = inferType (TLam (TLam (TApp (TVar 0) (TVar 1)) (Arrow A B)) A) []
