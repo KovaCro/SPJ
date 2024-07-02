@@ -1,4 +1,4 @@
-data Term = Var Int | Lam Term | App Term Term
+data Term = Var Int | Lam Term | App Term Term | Error
   deriving (Show, Read, Eq)
 
 data TypedTerm = TVar Int | TLam TypedTerm Type | TApp TypedTerm TypedTerm
@@ -93,3 +93,10 @@ example_infer2 = inferType (TLam (TLam (TApp (TVar 0) (TVar 1)) (Arrow (T 0) (T 
 example_infer3 = inferType (TApp (TLam (TLam (TApp (TVar 0) (TVar 1)) (Arrow (T 0) (T 1))) (T 0)) (TVar 10)) [(10, T 0)]
 -- Primjer (\.:A\.:(A->B) 0 1) (x:B)
 example_infer4 = inferType (TApp (TLam (TLam (TApp (TVar 0) (TVar 1)) (Arrow (T 0) (T 1))) (T 0)) (TVar 10)) [(10, T 1)]
+
+-- Evaluacija Typed Lambde
+teval :: TypedTerm -> Context -> Term
+teval t c = if inferType t c == Nothing then Error else eval $ eraseType $ t
+
+-- Primjer (\.:A\.:(A->B) 0 1) (x:A)
+teval_example = teval (TApp (TLam (TLam (TApp (TVar 0) (TVar 1)) (Arrow (T 0) (T 1))) (T 0)) (TVar 10)) [(10, T 0)]
